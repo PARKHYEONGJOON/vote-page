@@ -182,10 +182,30 @@
     window.location.href = mailto(d);
   });
 
-  try {
-    var prev = JSON.parse(localStorage.getItem('vote-sent') || 'null');
-    if (prev && prev.name) { showDone(prev); }
-  } catch (e) {}
+  // 메일 본문 버튼용 파라미터: ?n=이름&s=m1,t2&auto=1  (m1=8/31오전 m2=8/31오후 t1=9/1오전 t2=9/1오후 x=모두어려움)
+  var CODES = { m1: '8/31(월) 오전', m2: '8/31(월) 오후', t1: '9/1(화) 오전', t2: '9/1(화) 오후', x: '모두 어려움' };
+  var q = {};
+  (location.search || '').replace(/^\?/, '').split('&').forEach(function (kv) {
+    if (!kv) return; var p = kv.split('='); try { q[decodeURIComponent(p[0])] = decodeURIComponent((p[1] || '').replace(/\+/g, ' ')); } catch (e) {}
+  });
+  var fromMail = false;
+  if (q.n) { $('name').value = q.n.slice(0, 20); fromMail = true; }
+  if (q.s) {
+    q.s.split(',').forEach(function (c) {
+      var v = CODES[c]; if (!v) return;
+      boxes.forEach(function (b) { if (b.value === v) { b.checked = true; b.parentNode.classList.add('on'); } });
+    });
+    fromMail = true;
+  }
+
+  var prev = null;
+  try { prev = JSON.parse(localStorage.getItem('vote-sent') || 'null'); } catch (e) {}
+  if (q.auto === '1' && q.n && q.s) {
+    // 메일 버튼 1클릭 접수: 같은 사람이 다시 눌러도 항상 새로 보낸다(선택 변경 허용)
+    $('submit').click();
+  } else if (prev && prev.name && !fromMail) {
+    showDone(prev);
+  }
 })();
 </script>
 </body>
