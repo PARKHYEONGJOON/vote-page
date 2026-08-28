@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>투표 현황</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--ok:#059669}
+  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;letter-spacing:-0.018em}
+  main{max-width:520px;margin:0 auto;padding:32px 16px 48px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+  h1{font-size:18px;margin:0 0 4px} .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .big{font-size:28px;font-weight:700;margin:4px 0 14px} .big small{font-size:13px;color:var(--muted);font-weight:500;margin-left:6px}
+  table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px} td.c,th.c{text-align:center}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#e5e7eb;vertical-align:middle}
+  .dot.on{background:var(--accent)} .done{color:var(--ok);font-weight:600} .wait{color:var(--muted)}
+  .memo{color:var(--muted);font-size:12px;display:block;margin-top:2px}
+  .tot td{font-weight:700;border-bottom:0;background:#f8fafc} .best{color:var(--accent)}
+  .foot{color:var(--muted);font-size:12px;margin-top:14px;display:flex;justify-content:space-between}
+  button{font:inherit;font-size:12px;padding:5px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer}
+</style>
+</head>
+<body><main><div class="card">
+  <h1 id="title">투표 현황</h1><p class="sub" id="sub">불러오는 중…</p>
+  <div class="big" id="big"></div>
+  <div style="overflow-x:auto"><table id="tbl"></table></div>
+  <div class="foot"><span id="upd"></span><button onclick="load()">새로고침</button></div>
+</div></main>
+<script>
+var REPO = "PARKHYEONGJOON/vote-page";
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function gh(path){ return fetch("https://api.github.com/repos/"+REPO+"/contents/"+path+"?t="+Date.now(),{headers:{Accept:"application/vnd.github+json"},cache:"no-store"}).then(function(r){ if(r.status===404) return null; if(!r.ok) throw new Error("GitHub "+r.status); return r.json(); }); }
+function b64(s){ try{ return decodeURIComponent(escape(atob(s.replace(/\n/g,"")))); }catch(e){ return atob(s.replace(/\n/g,"")); } }
+function load(){
+  document.getElementById("sub").textContent="불러오는 중…";
+  Promise.all([fetch("roster.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}), gh("votes")]).then(function(res){
+    var roster=res[0], list=res[1]||[];
+    return Promise.all(list.filter(function(f){return /\.json$/.test(f.name);}).map(function(f){ return gh("votes/"+encodeURIComponent(f.name)).then(function(j){ try{ return JSON.parse(b64(j.content)); }catch(e){ return null; } }); }))
+      .then(function(votes){ render(roster, votes.filter(Boolean)); });
+  }).catch(function(e){ document.getElementById("sub").textContent="불러오기 실패: "+e.message; });
+}
+function render(roster, votes){
+  var by={}; votes.forEach(function(v){ by[v.name]=v; });
+  var members=roster.members.slice(); votes.forEach(function(v){ if(members.indexOf(v.name)<0) members.push(v.name); });
+  var answered=roster.members.filter(function(m){return by[m];}).length;
+  document.getElementById("title").textContent=roster.title;
+  document.getElementById("sub").textContent="가능한 시간을 모두 체크하는 방식 · 파란 점 = 가능";
+  document.getElementById("big").innerHTML=answered+" / "+roster.members.length+"<small>응답</small>";
+  var counts=roster.slots.map(function(s){ return votes.filter(function(v){return (v.picks||[]).indexOf(s)>=0;}).length; });
+  var best=Math.max.apply(null,counts);
+  var h="<tr><th>이름</th>"+roster.slots.map(function(s){return "<th class='c'>"+esc(s.replace(" ","<br>"))+"</th>";}).join("")+"<th class='c'>상태</th></tr>";
+  members.forEach(function(m){
+    var v=by[m]; var inRoster=roster.members.indexOf(m)>=0;
+    h+="<tr><td>"+esc(m)+(inRoster?"":" <span class='memo'>(명단 외)</span>")+(v&&v.memo?"<span class='memo'>"+esc(v.memo)+"</span>":"")+"</td>";
+    h+=roster.slots.map(function(s){ return "<td class='c'><span class='dot"+((v&&(v.picks||[]).indexOf(s)>=0)?" on":"")+"'></span></td>"; }).join("");
+    h+="<td class='c'>"+(v?((v.picks||[]).indexOf("모두 어려움")>=0?"<span class='done'>어려움</span>":"<span class='done'>완료</span>"):"<span class='wait'>미응답</span>")+"</td></tr>";
+  });
+  h+="<tr class='tot'><td>가능 인원</td>"+counts.map(function(c){return "<td class='c"+(c===best&&c>0?" best":"")+"'>"+c+"</td>";}).join("")+"<td></td></tr>";
+  document.getElementById("tbl").innerHTML=h;
+  var last=votes.map(function(v){return v.ts||"";}).sort().pop();
+  document.getElementById("upd").textContent=last?"마지막 응답 "+last.replace("T"," ").slice(0,16):"아직 응답 없음";
+}
+load();
+</script>
+</body></html>

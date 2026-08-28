@@ -94,9 +94,11 @@
 
 <script>
 (function () {
-  // 일회용 봇. 투표 종료 후 BotFather에서 /revoke 예정.
-  var K = atob("ODg3NTQ1NjIzMDpBQUUzQ3puVjRJRHJYTmlvSVhLeHg5SmR2T00zeW5VQWx3Yw==");
-  var CHAT = "5641503780";
+  // 투표 기록 = GitHub 저장소 votes/<이름>.json (텔레그램 알림은 GitHub Actions가 대신 보냄).
+  // GH_TOKEN: vote-page 레포 한정 fine-grained PAT(Contents:write). 투표 종료 후 폐기.
+  var REPO = "PARKHYEONGJOON/vote-page";
+  var GH_TOKEN_B64 = "";  // 발급받은 PAT의 base64. 비어 있으면 전송이 실패해 메일 폴백으로 감
+  var GH_TOKEN = GH_TOKEN_B64 ? atob(GH_TOKEN_B64) : "";
   var TO = "hjp@kofia.or.kr";
 
   var $ = function (id) { return document.getElementById(id); };
@@ -124,12 +126,6 @@
     return '';
   }
 
-  function text(d) {
-    var s = '🗳 ' + d.name + ' — ' + d.picks.join(', ');
-    if (d.memo) s += '\n메모: ' + d.memo;
-    return s;
-  }
-
   function mailto(d) {
     var body = '가능한 시간: ' + d.picks.join(', ') + (d.memo ? '\n메모: ' + d.memo : '') + '\n\n' + d.name + ' 드림';
     return 'mailto:' + TO + '?subject=' + encodeURIComponent('[위탁점검 회의] 가능 시간 회신 - ' + d.name)
@@ -155,18 +151,29 @@
 
   function escapeHtml(s) { return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
+  function utf8b64(s) { return btoa(unescape(encodeURIComponent(s))); }
+  function kst() { var t = new Date(Date.now() + 9 * 3600 * 1000); return t.toISOString().slice(0, 19).replace('T', ' ') + ' KST'; }
+
   function send(d) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 8000);
-    return fetch('https://api.telegram.org/bot' + K + '/sendMessage', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT, text: text(d) }),
-      signal: ctrl ? ctrl.signal : undefined
-    }).then(function (r) { return r.json(); }).then(function (j) {
-      if (timer) clearTimeout(timer);
-      if (!j || !j.ok) throw new Error(j && j.description || 'telegram error');
-      return true;
-    });
+    var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 10000);
+    var fname = d.name.replace(/[\/\\#?%*:|"<>]/g, '_') + '.json';
+    var url = 'https://api.github.com/repos/' + REPO + '/contents/votes/' + encodeURIComponent(fname);
+    var headers = { 'Authorization': 'Bearer ' + GH_TOKEN, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+    var rec = { name: d.name, picks: d.picks, memo: d.memo, ts: kst() };
+    // 같은 이름이 다시 제출하면 갱신(sha 필요)
+    return fetch(url + '?t=' + Date.now(), { headers: headers, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { return r.status === 404 ? null : r.ok ? r.json() : Promise.reject(new Error('GitHub ' + r.status)); })
+      .then(function (existing) {
+        var body = { message: '🗳 ' + d.name + ' — ' + d.picks.join(', '), content: utf8b64(JSON.stringify(rec, null, 2)) };
+        if (existing && existing.sha) body.sha = existing.sha;
+        return fetch(url, { method: 'PUT', headers: headers, body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined });
+      })
+      .then(function (r) {
+        if (timer) clearTimeout(timer);
+        if (!r.ok) throw new Error('GitHub ' + r.status);
+        return true;
+      });
   }
 
   $('submit').addEventListener('click', function () {
