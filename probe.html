@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>통로 점검</title>
+<style>body{font-family:-apple-system,"Malgun Gothic",sans-serif;max-width:480px;margin:40px auto;padding:0 16px;color:#111}
+li{margin:10px 0;font-size:15px}.ok{color:#059669}.ng{color:#b91c1c}.wait{color:#6b7280}</style></head>
+<body><h3>회사망 통로 점검</h3><p style="color:#6b7280;font-size:13px">각 항목이 몇 초 안에 OK/차단으로 바뀝니다. 결과를 캡처해 주세요.</p>
+<ul id="r"></ul>
+<script>
+var tests = [
+  ["GitHub Pages (이 페이지)", "https://parkhyeongjoon.github.io/vote-page/probe.html"],
+  ["GitHub API", "https://api.github.com/repos/PARKHYEONGJOON/vote-page"],
+  ["Telegram API", "https://api.telegram.org/"],
+  ["ntfy.sh", "https://ntfy.sh/"],
+  ["Cloudflare Workers", "https://workers.dev/"]
+];
+var ul = document.getElementById("r");
+tests.forEach(function (t) {
+  var li = document.createElement("li"); li.innerHTML = t[0] + ": <span class='wait'>확인 중…</span>"; ul.appendChild(li);
+  var span = li.querySelector("span"), done = false;
+  var timer = setTimeout(function(){ if(!done){done=true; span.className="ng"; span.textContent="차단 (8초 무응답)";} }, 8000);
+  fetch(t[1], {mode: "no-cors", cache: "no-store"}).then(function () {
+    if (done) return; done = true; clearTimeout(timer); span.className="ok"; span.textContent="OK";
+  }).catch(function (e) {
+    if (done) return; done = true; clearTimeout(timer); span.className="ng"; span.textContent="차단 (" + (e && e.message || "fetch 실패") + ")";
+  });
+});
+</script></body></html>
