@@ -94,9 +94,9 @@
 
 <script>
 (function () {
-  // 투표 기록 = GitHub 저장소 votes/<이름>.json (텔레그램 알림은 GitHub Actions가 대신 보냄).
-  // GH_TOKEN: vote-page 레포 한정 fine-grained PAT(Contents:write). 투표 종료 후 폐기.
-  var REPO = "PARKHYEONGJOON/vote-page";
+  // 투표 기록 = 비공개 레포 vote-data 의 votes/<이름>.json (텔레그램 알림은 그 레포의 Actions가 보냄).
+  // GH_TOKEN: vote-data 레포 한정 fine-grained PAT(Contents:write). 투표 종료 후 폐기.
+  var REPO = "PARKHYEONGJOON/vote-data";
   var GH_TOKEN_B64 = "";  // 발급받은 PAT의 base64. 비어 있으면 전송이 실패해 메일 폴백으로 감
   var GH_TOKEN = GH_TOKEN_B64 ? atob(GH_TOKEN_B64) : "";
   var TO = "hjp@kofia.or.kr";
