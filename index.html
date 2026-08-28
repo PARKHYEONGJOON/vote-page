@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>담당자 회의 일정 투표</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #111827; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #2563eb; --accent-ink: #ffffff; --ok: #059669; --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+    word-break: keep-all; letter-spacing: -0.018em; -webkit-font-smoothing: antialiased; }
+  main { max-width: 440px; margin: 0 auto; padding: 32px 16px 48px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px 22px; }
+  h1 { font-size: 18px; margin: 0 0 6px; font-weight: 700; }
+  .sub { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0 0 20px; }
+  label.field { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  input[type=text], textarea { width: 100%; font: inherit; font-size: 15px; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 9px; background: #fff; color: var(--ink); outline: none; }
+  input[type=text]:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  textarea { resize: vertical; min-height: 64px; }
+  .opts { display: grid; gap: 8px; }
+  .opt { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+    cursor: pointer; user-select: none; font-size: 15px; transition: border-color .12s, background .12s; }
+  .opt:hover { border-color: #cbd5e1; }
+  .opt input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+  .opt.on { border-color: var(--accent); background: #eff6ff; }
+  .opt .day { font-weight: 600; min-width: 74px; }
+  .opt .t { color: var(--ink); }
+  .opt.none { margin-top: 4px; color: var(--muted); }
+  .divider { height: 1px; background: var(--line); margin: 18px 0 4px; }
+  button.primary { width: 100%; margin-top: 18px; font: inherit; font-size: 15px; font-weight: 600; padding: 13px;
+    border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+  button.primary:disabled { opacity: .55; cursor: default; }
+  .err { color: #b91c1c; font-size: 13px; margin-top: 10px; display: none; }
+  .foot { text-align: center; font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.6; }
+  .foot a { color: var(--muted); }
+  .done { text-align: center; padding: 12px 0 4px; }
+  .done .mark { width: 48px; height: 48px; border-radius: 50%; background: #ecfdf5; color: var(--ok);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 12px; }
+  .done h2 { font-size: 17px; margin: 0 0 6px; }
+  .done p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0; }
+  .done .summary { margin: 14px 0 0; padding: 12px; background: var(--bg); border-radius: 9px; font-size: 14px; text-align: left; }
+  .fallback { margin-top: 16px; padding: 14px; border: 1px solid #fde68a; background: #fffbeb; border-radius: 10px; font-size: 13px; line-height: 1.6; color: var(--warn); }
+  .fallback a.btn { display: inline-block; margin-top: 8px; padding: 9px 14px; background: var(--warn); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <section id="form">
+      <h1>'26년 개인정보 위탁 점검 담당자 회의</h1>
+      <p class="sub">점검 방법·체크리스트 안내, 30분 내외 · 본회 2층 IT지원부<br>가능한 시간을 <b>모두</b> 체크해 주세요.</p>
+
+      <label class="field" for="name">이름</label>
+      <input type="text" id="name" placeholder="예) 홍길동" autocomplete="name" maxlength="20">
+
+      <label class="field">가능한 시간</label>
+      <div class="opts" id="opts">
+        <label class="opt"><input type="checkbox" value="8/31(월) 오전"><span class="day">8/31 (월)</span><span class="t">오전</span></label>
+        <label class="opt"><input type="checkbox" value="8/31(월) 오후"><span class="day">8/31 (월)</span><span class="t">오후</span></label>
+        <label class="opt"><input type="checkbox" value="9/1(화) 오전"><span class="day">9/1 (화)</span><span class="t">오전</span></label>
+        <label class="opt"><input type="checkbox" value="9/1(화) 오후"><span class="day">9/1 (화)</span><span class="t">오후</span></label>
+        <label class="opt none"><input type="checkbox" value="모두 어려움" id="none"><span>모두 어려움 (메모에 가능한 때를 적어주세요)</span></label>
+      </div>
+
+      <label class="field" for="memo">메모 <span style="font-weight:400">(선택)</span></label>
+      <textarea id="memo" placeholder="예) 화요일은 15시 이후 가능합니다" maxlength="200"></textarea>
+
+      <button class="primary" id="submit">제출하기</button>
+      <div class="err" id="err"></div>
+      <p class="foot">제출 내용은 IT지원부 박형준에게만 전달됩니다.<br><a href="#" id="mailLink">전송이 안 되면 메일로 보내기</a></p>
+    </section>
+
+    <section id="doneView" class="done hidden">
+      <div class="mark">✓</div>
+      <h2>접수됐습니다</h2>
+      <p>감사합니다. 일정이 확정되면 메일·협조전으로 안내드리겠습니다.</p>
+      <div class="summary" id="summary"></div>
+    </section>
+
+    <section id="fallbackView" class="fallback hidden">
+      <b>사내망에서 전송이 막힌 것 같습니다.</b><br>
+      아래 버튼을 누르면 내용이 채워진 메일이 열립니다. <b>보내기</b>만 눌러주세요.<br>
+      <a class="btn" id="fallbackMail" href="#">메일로 보내기</a>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  // 일회용 봇. 투표 종료 후 BotFather에서 /revoke 예정.
+  var K = atob("ODg3NTQ1NjIzMDpBQUUzQ3puVjRJRHJYTmlvSVhLeHg5SmR2T00zeW5VQWx3Yw==");
+  var CHAT = "5641503780";
+  var TO = "hjp@kofia.or.kr";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('#opts input'));
+
+  boxes.forEach(function (b) {
+    b.addEventListener('change', function () {
+      if (b.id === 'none' && b.checked) boxes.forEach(function (o) { if (o !== b) { o.checked = false; } });
+      if (b.id !== 'none' && b.checked) $('none').checked = false;
+      boxes.forEach(function (o) { o.parentNode.classList.toggle('on', o.checked); });
+    });
+  });
+
+  function collect() {
+    var name = $('name').value.trim();
+    var picks = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+    var memo = $('memo').value.trim();
+    return { name: name, picks: picks, memo: memo };
+  }
+
+  function validate(d) {
+    if (!d.name) return '이름을 입력해 주세요.';
+    if (!d.picks.length) return '가능한 시간을 하나 이상 체크해 주세요.';
+    if (d.picks[0] === '모두 어려움' && !d.memo) return '모두 어려우시면 가능한 때를 메모에 적어주세요.';
+    return '';
+  }
+
+  function text(d) {
+    var s = '🗳 ' + d.name + ' — ' + d.picks.join(', ');
+    if (d.memo) s += '\n메모: ' + d.memo;
+    return s;
+  }
+
+  function mailto(d) {
+    var body = '가능한 시간: ' + d.picks.join(', ') + (d.memo ? '\n메모: ' + d.memo : '') + '\n\n' + d.name + ' 드림';
+    return 'mailto:' + TO + '?subject=' + encodeURIComponent('[위탁점검 회의] 가능 시간 회신 - ' + d.name)
+      + '&body=' + encodeURIComponent(body);
+  }
+
+  function showError(msg) { var e = $('err'); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; }
+
+  function showDone(d) {
+    $('form').classList.add('hidden');
+    $('summary').innerHTML = '<b>' + escapeHtml(d.name) + '</b> · ' + escapeHtml(d.picks.join(', '))
+      + (d.memo ? '<br><span style="color:#6b7280">' + escapeHtml(d.memo) + '</span>' : '');
+    $('doneView').classList.remove('hidden');
+    try { localStorage.setItem('vote-sent', JSON.stringify(d)); } catch (e) {}
+  }
+
+  function showFallback(d) {
+    $('fallbackMail').href = mailto(d);
+    $('fallbackView').classList.remove('hidden');
+    $('submit').disabled = false; $('submit').textContent = '다시 시도';
+    window.location.href = mailto(d);
+  }
+
+  function escapeHtml(s) { return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function send(d) {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 8000);
+    return fetch('https://api.telegram.org/bot' + K + '/sendMessage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: CHAT, text: text(d) }),
+      signal: ctrl ? ctrl.signal : undefined
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (timer) clearTimeout(timer);
+      if (!j || !j.ok) throw new Error(j && j.description || 'telegram error');
+      return true;
+    });
+  }
+
+  $('submit').addEventListener('click', function () {
+    var d = collect(); var v = validate(d);
+    showError(v); if (v) return;
+    $('submit').disabled = true; $('submit').textContent = '전송 중…';
+    send(d).then(function () { showDone(d); }).catch(function () { showFallback(d); });
+  });
+
+  $('mailLink').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var d = collect(); var v = validate(d); showError(v); if (v) return;
+    window.location.href = mailto(d);
+  });
+
+  try {
+    var prev = JSON.parse(localStorage.getItem('vote-sent') || 'null');
+    if (prev && prev.name) { showDone(prev); }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
