@@ -94,11 +94,9 @@
 
 <script>
 (function () {
-  // 투표 기록 = 비공개 레포 vote-data 의 votes/<이름>.json (텔레그램 알림은 그 레포의 Actions가 보냄).
-  // GH_TOKEN: vote-data 레포 한정 fine-grained PAT(Contents:write). 투표 종료 후 폐기.
-  var REPO = "PARKHYEONGJOON/vote-data";
-  var GH_TOKEN_B64 = "";  // 발급받은 PAT의 base64. 비어 있으면 전송이 실패해 메일 폴백으로 감
-  var GH_TOKEN = GH_TOKEN_B64 ? atob(GH_TOKEN_B64) : "";
+  // 제출 = ntfy.sh 비밀 토픽에 JSON 발행 (시크릿 없음). 집 맥의 수집기(~/vote-data/collector.py)가
+  // 30초마다 가져가 votes/<이름>.json 기록 + 텔레그램 알림. 회사망에서 api.telegram.org는 막혀 있어 직통 불가.
+  var NTFY = "https://ntfy.sh/panda-vote-00c215733225";
   var TO = "hjp@kofia.or.kr";
 
   var $ = function (id) { return document.getElementById(id); };
@@ -157,21 +155,12 @@
   function send(d) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 10000);
-    var fname = d.name.replace(/[\/\\#?%*:|"<>]/g, '_') + '.json';
-    var url = 'https://api.github.com/repos/' + REPO + '/contents/votes/' + encodeURIComponent(fname);
-    var headers = { 'Authorization': 'Bearer ' + GH_TOKEN, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
     var rec = { name: d.name, picks: d.picks, memo: d.memo, ts: kst() };
-    // 같은 이름이 다시 제출하면 갱신(sha 필요)
-    return fetch(url + '?t=' + Date.now(), { headers: headers, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
-      .then(function (r) { return r.status === 404 ? null : r.ok ? r.json() : Promise.reject(new Error('GitHub ' + r.status)); })
-      .then(function (existing) {
-        var body = { message: '🗳 ' + d.name + ' — ' + d.picks.join(', '), content: utf8b64(JSON.stringify(rec, null, 2)) };
-        if (existing && existing.sha) body.sha = existing.sha;
-        return fetch(url, { method: 'PUT', headers: headers, body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined });
-      })
+    // 헤더 없는 단순 POST(text/plain)라 CORS preflight 없이 통과. 본문은 JSON 문자열.
+    return fetch(NTFY, { method: 'POST', body: JSON.stringify(rec), signal: ctrl ? ctrl.signal : undefined })
       .then(function (r) {
         if (timer) clearTimeout(timer);
-        if (!r.ok) throw new Error('GitHub ' + r.status);
+        if (!r.ok) throw new Error('ntfy ' + r.status);
         return true;
       });
   }
